@@ -1,0 +1,5 @@
+postgresql-9.4-pg-bigm (1.1-20131122-1) unstable; urgency=low
+
+  * initial release 1.1-20131122 for PostgreSQL 9.4.
+
+ -- OTSUKA Kenji <otsuka.knj@gmail.com>  Tue, 23 Dec 2014 00:00:00 +0900
