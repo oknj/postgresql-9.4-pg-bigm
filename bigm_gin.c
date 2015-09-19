@@ -1,11 +1,12 @@
 /*-------------------------------------------------------------------------
  *
  * Portions Copyright (c) 2007-2012, PostgreSQL Global Development Group
+ * Portions Copyright (c) 2013-2015, NTT DATA Corporation
  *
  * Changelog:
- *   2013/01/09
- *   Support full text search using bigrams.
- *   Author: NTT DATA Corporation
+ *	 2013/01/09
+ *	 Support full text search using bigrams.
+ *	 Author: NTT DATA Corporation
  *
  *-------------------------------------------------------------------------
  */
@@ -26,22 +27,27 @@
 #include "tsearch/ts_locale.h"
 #include "utils/array.h"
 #include "utils/builtins.h"
+#include "utils/rel.h"
 
 
 PG_FUNCTION_INFO_V1(gin_extract_value_bigm);
-Datum		gin_extract_value_bigm(PG_FUNCTION_ARGS);
-
 PG_FUNCTION_INFO_V1(gin_extract_query_bigm);
-Datum		gin_extract_query_bigm(PG_FUNCTION_ARGS);
-
 PG_FUNCTION_INFO_V1(gin_bigm_consistent);
-Datum		gin_bigm_consistent(PG_FUNCTION_ARGS);
-
 PG_FUNCTION_INFO_V1(gin_bigm_compare_partial);
-Datum		gin_bigm_compare_partial(PG_FUNCTION_ARGS);
-
 PG_FUNCTION_INFO_V1(pg_gin_pending_stats);
+
+/*
+ * The function prototypes are created as a part of PG_FUNCTION_INFO_V1
+ * macro since 9.4, and hence the declaration of the function prototypes
+ * here is necessary only for 9.3 or before.
+ */
+#if PG_VERSION_NUM < 90400
+Datum		gin_extract_value_bigm(PG_FUNCTION_ARGS);
+Datum		gin_extract_query_bigm(PG_FUNCTION_ARGS);
+Datum		gin_bigm_consistent(PG_FUNCTION_ARGS);
+Datum		gin_bigm_compare_partial(PG_FUNCTION_ARGS);
 Datum		pg_gin_pending_stats(PG_FUNCTION_ARGS);
+#endif
 
 Datum
 gin_extract_value_bigm(PG_FUNCTION_ARGS)
@@ -68,7 +74,8 @@ gin_extract_value_bigm(PG_FUNCTION_ARGS)
 		ptr = GETARR(bgm);
 		for (i = 0; i < bgmlen; i++)
 		{
-			text		*item = cstring_to_text_with_len(ptr->str, ptr->bytelen);
+			text	   *item = cstring_to_text_with_len(ptr->str, ptr->bytelen);
+
 			entries[i] = PointerGetDatum(item);
 			ptr++;
 		}
@@ -84,8 +91,9 @@ gin_extract_query_bigm(PG_FUNCTION_ARGS)
 	int32	   *nentries = (int32 *) PG_GETARG_POINTER(1);
 	StrategyNumber strategy = PG_GETARG_UINT16(2);
 
-	bool   **pmatch = (bool **) PG_GETARG_POINTER(3);
-	Pointer	  **extra_data = (Pointer **) PG_GETARG_POINTER(4);
+	bool	  **pmatch = (bool **) PG_GETARG_POINTER(3);
+	Pointer   **extra_data = (Pointer **) PG_GETARG_POINTER(4);
+
 	/* bool   **nullFlags = (bool **) PG_GETARG_POINTER(5); */
 	int32	   *searchMode = (int32 *) PG_GETARG_POINTER(6);
 	Datum	   *entries = NULL;
@@ -99,9 +107,9 @@ gin_extract_query_bigm(PG_FUNCTION_ARGS)
 	{
 		case LikeStrategyNumber:
 		{
-			char	*str = VARDATA(val);
-			int		slen = VARSIZE(val) - VARHDRSZ;
-			bool	*recheck;
+			char	   *str = VARDATA(val);
+			int			slen = VARSIZE(val) - VARHDRSZ;
+			bool	   *recheck;
 
 			/*
 			 * For wildcard search we extract all the bigrams that every
@@ -111,17 +119,18 @@ gin_extract_query_bigm(PG_FUNCTION_ARGS)
 			bgmlen = ARRNELEM(bgm);
 
 			/*
-			 * Check whether the heap tuple fetched by index search needs to be
-			 * rechecked against the query. If the search word consists of one
-			 * or two characters and doesn't contain any space character, we can
-			 * guarantee that the index test would be exact. That is, the heap
-			 * tuple does match the query, so it doesn't need to be rechecked.
+			 * Check whether the heap tuple fetched by index search needs to
+			 * be rechecked against the query. If the search word consists of
+			 * one or two characters and doesn't contain any space character,
+			 * we can guarantee that the index test would be exact. That is,
+			 * the heap tuple does match the query, so it doesn't need to be
+			 * rechecked.
 			 */
 			*extra_data = (Pointer *) palloc(sizeof(bool));
 			recheck = (bool *) *extra_data;
 			if (bgmlen == 1 && !removeDups)
 			{
-				const char	*sp;
+				const char *sp;
 
 				*recheck = false;
 				for (sp = str; (sp - str) < slen;)
@@ -161,7 +170,7 @@ gin_extract_query_bigm(PG_FUNCTION_ARGS)
 		ptr = GETARR(bgm);
 		for (i = 0; i < *nentries; i++)
 		{
-			text		*item;
+			text	   *item;
 
 			if (ptr->pmatch)
 			{
@@ -193,7 +202,7 @@ gin_bigm_consistent(PG_FUNCTION_ARGS)
 	/* text    *query = PG_GETARG_TEXT_P(2); */
 	int32		nkeys = PG_GETARG_INT32(3);
 
-	Pointer	  *extra_data = (Pointer *) PG_GETARG_POINTER(4);
+	Pointer    *extra_data = (Pointer *) PG_GETARG_POINTER(4);
 	bool	   *recheck = (bool *) PG_GETARG_POINTER(5);
 	bool		res;
 	int32		i;
@@ -202,11 +211,11 @@ gin_bigm_consistent(PG_FUNCTION_ARGS)
 	switch (strategy)
 	{
 		case LikeStrategyNumber:
+
 			/*
 			 * Don't recheck the heap tuple against the query if either
-			 * pg_bigm.enable_recheck is disabled or the search word is
-			 * the special one so that the index can return the exact
-			 * result.
+			 * pg_bigm.enable_recheck is disabled or the search word is the
+			 * special one so that the index can return the exact result.
 			 */
 			Assert(extra_data != NULL);
 			*recheck = bigm_enable_recheck &&
@@ -254,13 +263,13 @@ gin_bigm_consistent(PG_FUNCTION_ARGS)
 Datum
 gin_bigm_compare_partial(PG_FUNCTION_ARGS)
 {
-	text	*arg1 = PG_GETARG_TEXT_PP(0);
-	text	*arg2 = PG_GETARG_TEXT_PP(1);
-	char	*a1p;
-	char	*a2p;
-	int		mblen1;
-	int		mblen2;
-	int		res;
+	text	   *arg1 = PG_GETARG_TEXT_PP(0);
+	text	   *arg2 = PG_GETARG_TEXT_PP(1);
+	char	   *a1p;
+	char	   *a2p;
+	int			mblen1;
+	int			mblen2;
+	int			res;
 
 	a1p = VARDATA_ANY(arg1);
 	a2p = VARDATA_ANY(arg2);
@@ -292,19 +301,36 @@ pg_gin_pending_stats(PG_FUNCTION_ARGS)
 	HeapTuple	tuple;
 	TupleDesc	tupdesc;
 
+	indexRel = relation_open(indexOid, AccessShareLock);
+
+	if (indexRel->rd_rel->relkind != RELKIND_INDEX ||
+		indexRel->rd_rel->relam != GIN_AM_OID)
+		ereport(ERROR,
+				(errcode(ERRCODE_WRONG_OBJECT_TYPE),
+				 errmsg("relation \"%s\" is not a GIN index",
+						RelationGetRelationName(indexRel))));
+
+	/*
+	 * Reject attempts to read non-local temporary relations; we would be
+	 * likely to get wrong data since we have no visibility into the owning
+	 * session's local buffers.
+	 */
+	if (RELATION_IS_OTHER_TEMP(indexRel))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("cannot access temporary indexes of other sessions")));
+
 	/*
 	 * Obtain statistic information from the meta page
 	 */
-	indexRel = index_open(indexOid, AccessShareLock);
 	metabuffer = ReadBuffer(indexRel, GIN_METAPAGE_BLKNO);
 	LockBuffer(metabuffer, GIN_SHARE);
 	metapage = BufferGetPage(metabuffer);
 	metadata = GinPageGetMeta(metapage);
-	index_close(indexRel, AccessShareLock);
 
 	/*
-	 * Construct a tuple descriptor for the result row. This must
-	 * match this function's pg_bigm--x.x.sql entry.
+	 * Construct a tuple descriptor for the result row. This must match this
+	 * function's pg_bigm--x.x.sql entry.
 	 */
 	tupdesc = CreateTemplateTupleDesc(2, false);
 	TupleDescInitEntry(tupdesc, (AttrNumber) 1,
@@ -322,6 +348,7 @@ pg_gin_pending_stats(PG_FUNCTION_ARGS)
 	isnull[1] = false;
 
 	UnlockReleaseBuffer(metabuffer);
+	relation_close(indexRel, AccessShareLock);
 
 	tuple = heap_form_tuple(tupdesc, values, isnull);
 	PG_RETURN_DATUM(HeapTupleGetDatum(tuple));
