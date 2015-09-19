@@ -1,6 +1,6 @@
 Format: http://dep.debian.net/deps/dep5
 Upstream-Name: pg_bigm
-Source: http://sourceforge.jp/frs/redir.php?m=iij&f=%2Fpgbigm%2F59914%2Fpg_bigm-1.1-20131122.tar.gz
+Source: http://osdn.jp/frs/redir.php?m=iij&f=%2Fpgbigm%2F63792%2Fpg_bigm-1.1-20150910.tar.gz
 
 Files: *
 Copyright: 2013-2014, NTT DATA Corporation

@@ -4,7 +4,7 @@ Priority: extra
 Maintainer: OTSUKA Kenji <otsuka.knj@gmail.com>
 Build-Depends: debhelper (>= 7.0.50~), postgresql-server-dev-9.4
 Standards-Version: 3.8.4
-Homepage: http://pgbigm.sourceforge.jp/
+Homepage: http://pgbigm.osdn.jp/
 #Vcs-Git: git://git.debian.org/collab-maint/postgresql-9.4-pg-bigm.git
 #Vcs-Browser: http://git.debian.org/?p=collab-maint/postgresql-9.4-pg-bigm.git;a=summary
 
